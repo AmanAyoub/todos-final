@@ -6,7 +6,7 @@ const host = "localhost";
 const port = 3000;
 
 // Static data for initial testing
-let todoLists = require("./lib/seed-data");
+let todoLists = require("./lib/seed-data").sort((todoList) => todoList.isDone() ? 1 : -1);
 
 app.set("views", "./views");
 app.set("view engine", "pug");
@@ -14,8 +14,29 @@ app.set("view engine", "pug");
 app.set(morgan("common"));
 app.use(express.static("public"));
 
+// Compare todo list titles alphabetically
+const compareByTitle = (todoListA, todoListB) => {
+  let titleA = todoListA.title.toLowerCase();
+  let titleB = todoListB.title.toLowerCase();
+  if (titleA > titleB) {
+    return 1;
+  } else if (titleA < titleB) {
+    return -1;
+  } else {
+    return 0;
+  }
+}
+
+// return the list of todo lists sorted by completion status and title.
+const sortTodoLists = lists => {
+  return lists.slice().sort(compareByTitle).sort((a, b) => a.isDone() - b.isDone());
+};
+
+
 app.get("/", (req, res) => {
-  res.render("lists");
+  res.render("lists", {
+    todoLists: sortTodoLists(todoLists),
+  });
 });
 
 app.listen(port, host, () => {
