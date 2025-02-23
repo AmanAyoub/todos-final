@@ -42,6 +42,24 @@ const loadTodoList = todoListId => {
   return todoLists.find(todoList => todoList.id === todoListId);
 }
 
+// Toggle (mark done or undone) the todo from the given todo list.
+// Add flahs messages when marking the todo as done or undone.
+const toggleTodo = (todo, req) => {
+  let title = todo.title;
+  if (todo.isDone()) {
+    todo.markUndone();
+    req.flash("success", `"${title}" marked as NOT done!`);
+  } else {
+    todo.markDone();
+    req.flash("success", `"${title}" marked done.`);
+  }
+}
+
+const loadTodo = (listId, todoId) => {
+  let todoList = loadTodoList(listId);
+  if (!todoList) return undefined;
+  return todoList.findById(todoId);
+}
 
 app.get("/", (req, res) => {
   res.redirect("lists");
@@ -101,6 +119,46 @@ app.get("/lists/:todoListId", (req, res, next) => {
       todoList,
       todos: sortTodos(todoList),
     });
+  }
+});
+
+// Toggle individual todos in a todo list
+app.post("/lists/:todoListId/todos/:todoId/toggle", (req, res, next) => {
+  let { todoListId, todoId} = { ...req.params };
+  let todo = loadTodo(+todoListId, +todoId);
+  if (todo === undefined) {
+    next(new Error("Not found."));
+  } else {
+    toggleTodo(todo, req);
+    res.redirect(`/lists/${todoListId}`);
+  }
+});
+
+// Delete individual todos from todo list
+app.post("/lists/:todoListId/todos/:todoId/destroy", (req, res, next) => {
+  let { todoListId, todoId} = { ...req.params };
+  let todo = loadTodo(+todoListId, +todoId);
+  if (todo === undefined) {
+    next(new Error("Not found."));
+  } else {
+    let todoList = loadTodoList(+todoListId);
+    todoList.removeAt(todoList.findIndexOf(todo));
+
+    req.flash("success", `The todo has been deleted.`);
+    res.redirect(`/lists/${todoListId}`);
+  }
+});
+
+// Mark all todos as done
+app.post("/lists/:todoListId/complete_all", (req, res, next) => {
+  let todoListId = req.params.todoListId;
+  let todoList = loadTodoList(+todoListId);
+  if (!todoList) {
+    next(new Error("Not found."));
+  } else {
+    todoList.markAllDone();
+    req.flash("success", "All todos have been marked as done.");
+    res.redirect(`/lists/${todoListId}`);
   }
 });
 
