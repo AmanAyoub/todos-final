@@ -4,6 +4,7 @@ const flash = require("express-flash");
 const session = require("express-session");
 const { body, validationResult } = require("express-validator");
 const TodoList = require("./lib/todolist");
+const { sortTodoLists, sortTodos } = require("./lib/sort");
 
 const app = express();
 const host = "localhost";
@@ -35,23 +36,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// Compare todo list titles alphabetically
-const compareByTitle = (todoListA, todoListB) => {
-  let titleA = todoListA.title.toLowerCase();
-  let titleB = todoListB.title.toLowerCase();
-  if (titleA > titleB) {
-    return 1;
-  } else if (titleA < titleB) {
-    return -1;
-  } else {
-    return 0;
-  }
+// Find a todo list with the indicated ID. Returns `undefined` if not found.
+// Not that `todoListId` must be numeric.
+const loadTodoList = todoListId => {
+  return todoLists.find(todoList => todoList.id === todoListId);
 }
-
-// return the list of todo lists sorted by completion status and title.
-const sortTodoLists = lists => {
-  return lists.slice().sort(compareByTitle).sort((a, b) => a.isDone() - b.isDone());
-};
 
 
 app.get("/", (req, res) => {
@@ -100,6 +89,26 @@ app.post("/lists",
     }
   }
 );
+
+// Render individual todo list and its todos
+app.get("/lists/:todoListId", (req, res, next) => {
+  let todoListId = req.params.todoListId;
+  let todoList = loadTodoList(+todoListId);
+  if (todoList === undefined) {
+    next(new Error("Not found."));
+  } else {
+    res.render("list", {
+      todoList,
+      todos: sortTodos(todoList),
+    });
+  }
+});
+
+// Error handler
+app.use((err, req, res, _next) => {
+  console.log(err);
+  res.status(404).send(err.message);
+});
 
 app.listen(port, host, () => {
   console.log(`Todos is listening on port ${port} of ${host}`);
