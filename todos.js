@@ -6,13 +6,12 @@ const { body, validationResult } = require("express-validator");
 const TodoList = require("./lib/todolist");
 const Todo = require("./lib/todo");
 const { sortTodoLists, sortTodos } = require("./lib/sort");
+const store = require("connect-loki");
 
 const app = express();
 const host = "localhost";
 const port = 3000;
-
-// Static data for initial testing
-let todoLists = require("./lib/seed-data").sort((todoList) => todoList.isDone() ? 1 : -1);
+const LokiStore = store(session);
 
 app.set("views", "./views");
 app.set("view engine", "pug");
@@ -22,13 +21,35 @@ app.use(express.static("public"));
 app.use(express.urlencoded({ extended: false }));
 
 app.use(session({
+  cookie: {
+    httpOnly: true,
+    maxAge: 31 * 24 * 60 * 60 * 1000, // 31 days in millseconds
+    path: "/",
+    secure: false,
+  },
   name: "launch-school-todos-session-id",
   resave: false,
   saveUninitialized: true,
   secret: "this is not very secure",
+  store: new LokiStore({}),
 }));
 
 app.use(flash());
+
+
+// Set up persistent session data
+let todoLists = [];
+app.use((req, res, next) => {
+  let arr = [];
+  if ("todoLists" in req.session) {
+    req.session.todoLists.forEach(todoList => {
+      arr.push(TodoList.makeTodoList(todoList));
+    });
+  }
+  todoLists = arr;
+  req.session.todoLists = todoLists;
+  next();
+});
 
 // Extract session info
 app.use((req, res, next) => {
